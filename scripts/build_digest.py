@@ -19,7 +19,6 @@ import os
 import sys
 import urllib.request
 import urllib.error
-import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -49,27 +48,23 @@ LOCATION_KEYWORDS = [
 ]
 
 # Static manual-check list: JS-rendered / blocked sites we cannot reliably scrape.
+#
+# ASD's careers site (NGA/ColdFusion) is plain server-rendered HTML and scrapes
+# fine from a residential IP — but it sits behind an AWS ALB with a WAF that
+# returns HTTP 405 to GitHub Actions' runner IPs specifically (confirmed
+# 2026-08-28: identical request succeeds locally, fails only from the Actions
+# runner). That's a permanent block on cloud/hosting-provider ASNs, not a
+# transient issue, so it stays a manual-check link rather than an auto-source.
 MANUAL_CHECK = [
     ("ACU (PageUp)", "https://careers.acu.edu.au/en/listing/"),
     ("Griffith University", "https://www.griffith.edu.au/careers"),
     ("QUT", "https://www.qut.edu.au/about/careers"),
     ("Cricket Australia", "https://cricket.csod.com/ux/ats/careersite/11/home?c=cricket"),
     ("Cricket (site 12)", "https://cricket.csod.com/ux/ats/careersite/12/home?c=cricket"),
+    ("ASD / Defence",
+     "https://defencecareers.nga.net.au/cp/index.cfm?event=jobs.home&CurATC=ASDEXT&CurBID=C49A927D-AAE1-A68D-E047-B5FED76E0B7B&persistVariables=CurATC%2CCurBID"),
     ("Council (ccc.qld.gov.au)", "https://www.ccc.qld.gov.au/about/careers/vacancies"),
 ]
-
-ASD_URL = ("https://defencecareers.nga.net.au/cp/index.cfm?event=jobs.home"
-           "&CurATC=ASDEXT&CurBID=C49A927D-AAE1-A68D-E047-B5FED76E0B7B"
-           "&persistVariables=CurATC%2CCurBID")
-
-_ASD_JOB_RE = re.compile(
-    r'<a\s+([^>]*class="cp_jobListJobTitle"[^>]*)>(.*?)</a>\s*<ul>(.*?)</ul>', re.S)
-_HREF_RE = re.compile(r'href="([^"]+)"')
-_LI_RE = re.compile(r'<li>(.*?)</li>', re.S)
-
-
-def _strip_tags(s):
-    return html.unescape(re.sub(r"<[^>]+>", " ", s or "")).strip()
 
 
 def _http(url, *, data=None, headers=None, timeout=25):
@@ -125,33 +120,9 @@ def fetch_csiro():
     return out
 
 
-def fetch_asd():
-    """ASD/Defence careers (NGA, server-rendered HTML). Returns {title, location, url}.
-
-    The page shown at ASD_URL lists all currently open roles on one page (no JS
-    rendering, no pagination needed today — the "records" count on the page was
-    12 of 12 when this was written). If ASD ever grows past one page, this will
-    silently miss the overflow rather than erroring — matches fetch_csiro's
-    single-page assumption above.
-    """
-    raw = _http(ASD_URL, headers={"User-Agent": UA})
-    out = []
-    for attrs, title_html, ul_html in _ASD_JOB_RE.findall(raw):
-        href_m = _HREF_RE.search(attrs)
-        title = _strip_tags(title_html)
-        if not href_m or not title:
-            continue
-        lis = _LI_RE.findall(ul_html)
-        location = _strip_tags(lis[-1]) if lis else ""
-        url = urllib.parse.urljoin(ASD_URL, html.unescape(href_m.group(1)))
-        out.append({"title": title, "location": location, "url": url})
-    return out
-
-
 SOURCES = [
     ("UQ", "https://uq.wd3.myworkdayjobs.com/uqcareers", fetch_uq),
     ("CSIRO", "https://jobs.csiro.au/search/?createNewAlert=false&q=", fetch_csiro),
-    ("ASD", ASD_URL, fetch_asd),
 ]
 
 

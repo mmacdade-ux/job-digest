@@ -17,10 +17,13 @@ GitHub Actions.
 |--------|--------|
 | UQ (Workday) | JSON API (`wday/cxs/uq/uqcareers/jobs`) |
 | CSIRO (SuccessFactors) | HTML parse of `jobTitle-link` anchors |
-| ASD / Defence (NGA careers) | HTML parse of `cp_jobListJobTitle` anchors |
 
 JS-rendered / blocked sites (ACU, Griffith, QUT, Cricket, Council) are listed
-as "check manually" links in the digest rather than scraped.
+as "check manually" links in the digest rather than scraped. ASD is also on
+that list: its page itself is plain scrapable HTML, but it sits behind an AWS
+WAF that returns HTTP 405 to GitHub Actions' runner IPs specifically (confirmed
+working from a residential IP, blocked only from Actions) — a permanent
+cloud-ASN block, not something a retry or header change fixes.
 
 ## Setup (one-time)
 
@@ -29,7 +32,8 @@ as "check manually" links in the digest rather than scraped.
    needed, but the free tier only delivers to the account's own address
    (`m.macdade@griffith.edu.au`), so that's the fixed recipient here too.
 2. **Secret:** repo → Settings → Secrets and variables → Actions → New repository
-   secret → `RESEND_API_KEY` (same key value as tech-digest's).
+   secret → `RESEND_API_KEY` (its own key, created separately in Resend —
+   API key values are shown once and can't be copied from tech-digest's).
 3. **Actions write:** Settings → Actions → General → Workflow permissions →
    Read and write.
 4. *(optional)* **Pages:** Settings → Pages → Deploy from branch `main` / root →
