@@ -1,12 +1,14 @@
 # Job digest
 
-A daily job-search digest, built and published by GitHub Actions.
+A daily job-search digest, emailed via [Resend](https://resend.com) and built by
+GitHub Actions.
 
 - **Schedule:** every day at 21:00 UTC (07:00 Australia/Brisbane) — see
   [`.github/workflows/digest.yml`](.github/workflows/digest.yml).
 - **What it does:** [`scripts/build_digest.py`](scripts/build_digest.py) fetches
   postings from automated sources, filters to relevant roles, deduplicates
-  against `seen.json`, and writes `latest.html` + a dated `digest-YYYY-MM-DD.html`.
+  against `seen.json`, emails an HTML digest, and commits `latest.html` + a dated
+  `digest-YYYY-MM-DD.html` as a web archive.
 - **Read it:** `latest.html` (bookmark the GitHub Pages URL once Pages is enabled).
 
 ## Sources
@@ -15,9 +17,23 @@ A daily job-search digest, built and published by GitHub Actions.
 |--------|--------|
 | UQ (Workday) | JSON API (`wday/cxs/uq/uqcareers/jobs`) |
 | CSIRO (SuccessFactors) | HTML parse of `jobTitle-link` anchors |
+| ASD / Defence (NGA careers) | HTML parse of `cp_jobListJobTitle` anchors |
 
-JS-rendered / blocked sites (ACU, Griffith, QUT, Cricket, ASD, Council) are listed
+JS-rendered / blocked sites (ACU, Griffith, QUT, Cricket, Council) are listed
 as "check manually" links in the digest rather than scraped.
+
+## Setup (one-time)
+
+1. **Resend:** uses the same Resend account as
+   [tech-digest](https://github.com/mmacdade-ux/tech-digest) — no new signup
+   needed, but the free tier only delivers to the account's own address
+   (`m.macdade@griffith.edu.au`), so that's the fixed recipient here too.
+2. **Secret:** repo → Settings → Secrets and variables → Actions → New repository
+   secret → `RESEND_API_KEY` (same key value as tech-digest's).
+3. **Actions write:** Settings → Actions → General → Workflow permissions →
+   Read and write.
+4. *(optional)* **Pages:** Settings → Pages → Deploy from branch `main` / root →
+   archive at `https://mmacdade-ux.github.io/job-digest/latest.html`.
 
 ## Dedup
 
@@ -26,5 +42,9 @@ only ever added, never removed — so a role is "new" exactly once.
 
 ## Run it yourself
 
-Locally: `python3 scripts/build_digest.py` (stdlib only — no installs).
+```sh
+python3 scripts/build_digest.py --dry-run   # build archive + email-preview.html, no send
+python3 scripts/build_digest.py             # build + send (needs RESEND_API_KEY)
+```
+
 On demand in the cloud: Actions tab → **Daily job digest** → **Run workflow**.

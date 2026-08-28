@@ -19,7 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build digest
+      - name: Build and send digest
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: python3 scripts/build_digest.py
 
       - name: Commit and push if changed
