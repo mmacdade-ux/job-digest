@@ -1,0 +1,39 @@
+name: ASD digest
+
+on:
+  schedule:
+    # 23:15 UTC Mon/Thu = 09:15 Australia/Brisbane Tue/Fri (no DST in QLD) —
+    # just ahead of a recurring 9:30 meeting, so the self-hosted runner (a
+    # home machine) is reliably online when this fires.
+    - cron: "15 23 * * 1,4"
+  workflow_dispatch: {}   # run on demand from the Actions tab
+
+permissions:
+  contents: write          # GITHUB_TOKEN may commit seen-asd.json
+
+concurrency:
+  group: asd-digest
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check ASD and send if new
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: python3 scripts/build_asd_digest.py
+
+      - name: Commit seen-asd.json if changed
+        run: |
+          git config user.name "job-digest-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen-asd.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "ASD digest $(date -u +%F)"
+            git push
+          fi

@@ -20,10 +20,23 @@ GitHub Actions.
 
 JS-rendered / blocked sites (ACU, Griffith, QUT, Cricket, Council) are listed
 as "check manually" links in the digest rather than scraped. ASD is also on
-that list: its page itself is plain scrapable HTML, but it sits behind an AWS
-WAF that returns HTTP 405 to GitHub Actions' runner IPs specifically (confirmed
+that list, but is additionally covered by a separate pipeline — see below.
+
+## ASD digest (separate pipeline)
+
+ASD's careers page is plain scrapable HTML, but it sits behind an AWS WAF that
+returns HTTP 405 to GitHub Actions' cloud runner IPs specifically (confirmed
 working from a residential IP, blocked only from Actions) — a permanent
-cloud-ASN block, not something a retry or header change fixes.
+cloud-ASN block, not something a retry or header change fixes. So it runs as
+its own small pipeline on a **self-hosted runner** (a home machine) instead:
+
+- [`scripts/build_asd_digest.py`](scripts/build_asd_digest.py) — its own fetch,
+  its own dedup file (`seen-asd.json`), its own Resend email. Never touches
+  the main digest's data.
+- [`.github/workflows/asd-digest.yml`](.github/workflows/asd-digest.yml) —
+  `runs-on: self-hosted`, scheduled Tue/Fri 09:15 Brisbane (queues and waits
+  for the runner if it's offline at that exact moment).
+- Uses the same `RESEND_API_KEY` secret as the main digest.
 
 ## Setup (one-time)
 
